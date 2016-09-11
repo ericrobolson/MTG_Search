@@ -26,13 +26,8 @@ def InsertCard(db, setId, card)
 				
 	# create the card if it doesn't exist
 	if (GetCardId(db, setId, name, id).length == 0)
-		# Get ArtistId
 		artistId = GetValueId(db, "Artist", "ArtistId", "Artist", card["artist"])
-		
-		# Get RarityId
 		rarityId = GetValueId(db, "Rarity", "RarityId", "Rarity", card["rarity"])
-		
-		# Get LayoutId
 		layoutId = GetValueId(db, "Layout", "LayoutId", "Layout", card["layout"])
 		
 		db.execute("
@@ -163,25 +158,9 @@ def InsertLinks(db, linkValues, linkingTable, cardId, valueTable, valueIdColumn,
 end
 
 
-## Insert the card colors into the CardColor linking table
-#def InsertCardColors(db, cardId, colors)
-#	if (colors == nil)
-#		return
-#	end
-#
-#	# Add the color for the card to the linking table if it doesn't exist
-#	colors.each do |color|
-#		colorId = db.execute("SELECT ColorId FROM Color WHERE Color = ?", color.to_s)
-#		
-#		if (!LinkingTableValueExists(db, "CardColor", "ColorId", colorId, cardId))
-#			db.execute("INSERT INTO CardColor (ColorId, CardId) VALUES (?, ?);",[colorId, cardId])
-#		end
-#	end
-#end
-
-##########################################
-# Parse the json file into sets of cards #
-##########################################
+########################################################
+# Insert the data into the database from the JSON file #
+########################################################
 
 puts "\n\nStarting..."
 puts "\n\n...\n\n"
