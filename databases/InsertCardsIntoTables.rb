@@ -82,7 +82,7 @@ def InsertCard(db, setId, card)
 	InsertLinks(db, card["supertypes"], "CardSupertype", cardId, "Supertype", "SupertypeId", "Supertype")
 	InsertLinks(db, card["subtypes"], "CardSubtype", cardId, "Subtype", "SubtypeId", "Subtype")
 	
-	puts cardId
+	puts "SetId: " + setId[0].to_s + "; CardId: " + cardId[0].to_s + "; " + name
 end
 
 # Get the CardId for the card with the given information

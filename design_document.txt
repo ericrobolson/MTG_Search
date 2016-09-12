@@ -1,0 +1,29 @@
+Design Document
+
+Services:
+	Card:
+		Includes the Card table, as well as all linking tables; 
+		Includes searching
+		Includes combo linking table
+		Includes Batch Sorter
+	Type
+	Supertype
+	Subtype
+	Set
+	Color
+	Rarity
+	Layout
+	Artist
+	
+	
+
+	
+	
+Future goals:
+	Formats cards are legal in
+	Deck Editor
+	Meta Analyzer
+	Add in tokenized text searching
+	Add in keyword table for searching
+	Add in 'X' mana cost
+	Add in Phyrexian mana
