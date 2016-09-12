@@ -152,7 +152,7 @@ SQLite3::Database.new(cardInformationDb) do |db|
 	db.execute("INSERT INTO Color (Color, Symbol) VALUES ('Black', 'B');")
 	db.execute("INSERT INTO Color (Color, Symbol) VALUES ('Red', 'R');")
 	db.execute("INSERT INTO Color (Color, Symbol) VALUES ('White', 'W');")
-	
+	db.execute("INSERT INTO Color (Color, Symbol) VALUES ('Colorless', 'C');")
 
 	# Create color linking table
 	db.execute("CREATE TABLE IF NOT EXISTS CardColor (

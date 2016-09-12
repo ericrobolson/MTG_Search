@@ -220,6 +220,46 @@ SQLite3::Database.open(cardInformationDb) do |db|
 		
 		puts set[1]['name'].to_s + " - Cards: " + set[1]['cards'].length.to_s	
 	end
+	
+	##########################################
+	# For cards that do not have colors,     #
+	# update them to use the colorless color #
+	##########################################
+	puts "\n\nUpdating colorless cards..."
+	
+	colorlessCardIds = db.execute("
+		SELECT 
+			DISTINCT card.CardId
+		FROM Card
+	
+		EXCEPT
+		SELECT 
+			card.CardId 
+		FROM
+			Card INNER JOIN
+				CardColor
+			ON card.CardId = cardcolor.CardId
+	")
+		
+	colorlessColorId = db.execute("
+		SELECT
+			ColorId
+		FROM 
+			Color 
+		WHERE 
+			Color like 'Colorless'
+		")
+	
+	colorlessCardIds.each do |colorlessCardId|
+		db.execute("
+			INSERT INTO
+				CardColor
+			(CardId, ColorId)
+			VALUES
+			(?,?)	
+		", [colorlessCardId, colorlessColorId])
+		puts colorlessCardId
+	end
 end
 
 ############

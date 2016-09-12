@@ -27,3 +27,4 @@ Future goals:
 	Add in keyword table for searching
 	Add in 'X' mana cost
 	Add in Phyrexian mana
+	Change 'color' to use color identity?
