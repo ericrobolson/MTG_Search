@@ -2,82 +2,45 @@
 # v1
 # Search for cards that fit the search criteria
 
-##########################3
-# TODO
-#	Change SQL to generate it based off of lists; e.g. use foreach loops for text search strings like 
-#
-
-# sql = ""
-# parametervalues = []
-# foreach text in search_text_list
-# 	sql += "text like ?"
-# 	parametervalues.push(text)
-# 	return sql, parametervalues
-# 	then, insert the sql, and add the parametervalues to the query
-
-
 require 'sqlite3'
 DATABASE_LOCATION = '../databases/'
 cardInformationDb = DATABASE_LOCATION + 'CardInformation.db'
 
-includeRed = 1
-includeBlue = 1
-includeGreen = 1
-includeWhite = 1
-includeBlack = 1
-includeColorless = 1
+############################################
+# Dynamic SQL statement generation objects #
+############################################
 
-onlyMulticolor = 1
-onlyMonocolor = 1
-maxColors = 3
-
-searchText = 1
-cardText = "land"
-cardText = '%' + cardText + '%'
-
-searchName = 1
-cardName = ""
-cardName = '%' + cardName + '%'
-
-searchSupertype = 1
-supertype = "Legendary"
-
-searchType = 1
-type = "Creature"
-
-maxCmc = 10000
-minCmc = 0
-
-minPower = 0
-maxPower = 20
-minToughness = 0
-maxToughness = 10000
-
-# class that contains generated SQL as well as the parametervalues for it
-#	sql: the generated SQL statement
-#	conditions: an array of variables to use as conditions
+# Generate SQL for an array of values
+#	def initialize():
+#		searchValues: the array of items to search for
+#		columnToSearch: the column to search in the SQL statement
+#		operator: e.g. AND, OR; whether to search for all of the items in the list or only one
+#	@sql / sql: the generated SQL statement
+#	@parameterValues / parameterValues: the list of variables to use as parameters
 class GeneratedWhereAndCondition
 	@sql
 	@parameterValues
 	
-	def initialize(searchValues, objToSearch)
-		sql = ""
-		parameterValues = []
+	def initialize(searchValues, columnToSearch, operator)
+		sqlBuilder = ""
+		parameterValuesBuilder = []
 	
-		# if there's nothing to search for, then the generated SQL is a simple always true statement 
-		if (searchValues == nil || searchValues.length == 0 ||
-			objToSearch == nil || objToSearch.length == 0)
-			
-			sql = "(1 = 1) AND"
+		if (searchValues == nil || searchValues.length == 0 || columnToSearch == nil || columnToSearch.length == 0)
+			sqlBuilder = "(1 = 1)"
 		else
+			sqlBuilder += "("
+		
 			searchValues.each do |searchValue|
-				sql += "(" + objToSearch + " like ?) AND "
-				parameterValues.push("%" + searchValue.to_s + "%")
+				sqlBuilder += "(" + columnToSearch + " like ?) " + operator
+				parameterValuesBuilder.push("%" + searchValue.to_s + "%")
 			end
+			
+			sqlBuilder = sqlBuilder.chomp(operator)
+			sqlBuilder += ")"
 		end
 		
-		@sql = sql
-		@parameterValues = parameterValues
+		@sql = sqlBuilder
+		@parameterValues = parameterValuesBuilder
 	end
 		
 	def sql 
@@ -88,50 +51,178 @@ class GeneratedWhereAndCondition
 		return @parameterValues
 	end
 end
-#
-## Generate SQL statements based on an array of text to search
-#def GenerateCardTextSql(searchArray, objToSearch)
-#	sql = ""
-#	conditions = []
-#	
-#	# if there's nothing to search for, then the generated SQL is a simple always true statement 
-#	if (searchArray == nil || searchArray.length == 0 || objToSearch == nil || objToSearch.length == 0)
-#		sql = "1 = 1 AND"
-#	else
-#		searchArray.each do |searchObj|
-#			sql += "(" + objToSearch + " like ?) AND "
-#			conditions.push("%" + searchObj.to_s + "%")
-#		end
-#	end
+
+# Generate the SQL for which colors to exclude
+#	only takes ints
+#	def initialize():
+#		searchValues: the array of items to search for
+#	@sql / sql: the generated SQL statement
+#	@parameterValues / parameterValues: the list of variables to use as parameters
+class GenerateColorSql
+	@sql
+	@parameterValues
+	
+	def initialize(searchValues)
+		sqlBuilder = ""
+		parameterValuesBuilder = []
+	
+		if (searchValues == nil || searchValues.length == 0)
+			sqlBuilder = "(0 = 1)"
+		else
+			sqlBuilder = "color.ColorId IN ("
+			searchValues.each do |searchValue|
+				sqlBuilder += "?,"
+				parameterValuesBuilder.push(searchValue)
+			end
+			# need to remove the last char, as it's a ',' when there's no more items
+			sqlBuilder = sqlBuilder.chop + ")"			
+		end
+		
+		@sql = sqlBuilder
+		@parameterValues = parameterValuesBuilder
+	end
+	
+	def sql
+		return @sql
+	end
+	
+	def parameterValues
+		return @parameterValues
+	end
+end
+
+# TODO
+## Generate the code which determines how many unique colors are acceptible
+##	only accepts ints
+#class GenerateNumberOfColorsSql
+#	@sql
+#	@parameterValues
 #		
-#	return [sql, conditions]
+#	def initialize(min, max)
+#		sqlBuilder = ""
+#		parameterValuesBuilder = []
+#	
+#		# build the minimum colors required
+#		if (min == nil || min == 0)
+#			sqlBuilder += " (1 = 1) "
+#		else
+#			sqlBuilder += "(COUNT(color.ColorId) >= ?)"
+#			parameterValuesBuilder.push(min)
+#		end
+#
+#		# build the maximum colors required
+#		if (max == nil || max == 0)
+#			sqlBuilder += " AND (1 = 1) "
+#		else
+#			sqlBuilder += " AND (COUNT(color.ColorId) >= ?) "
+#			parameterValuesBuilder.push(max)
+#		end
+#		
+#		@sql = sqlBuilder
+#		@parameterValues = parameterValuesBuilder
+#	end
+#	
+#	def sql
+#		return @sql
+#	end
+#	
+#	def parameterValues
+#		return @parameterValues
+#	end
 #end
 #
+###############################
+# Build and execute the query #
+###############################
 
+# Generate the SQL for cmc
+#	only take ints
+#	def initialize():
+#		minCmc: the minimum cmc that is acceptible
+#		maxCmc: the maximum cmc that is acceptible
+#	@sql / sql: the generated SQL statement
+#	@parameterValues / parameterValues: the list of variables to use as parameters
+class GenerateCmcSql
+	@sql
+	@parameterValues
+	
+	def initialize(minCmc, maxCmc)
+		sqlBuilder = ""
+		parameterValuesBuilder = []
+		
+		# create minimum cmc
+		if (minCmc == nil || minCmc <= 0)
+			sqlBuilder += "(1 = 1) "
+		else
+			sqlBuilder += "(card.cmc >= ?)"
+			parameterValuesBuilder.push(minCmc)
+		end
+		
+		# create the max cmc
+		if (maxCmc == nil || maxCmc <= 0)
+			sqlBuilder += "AND (1 = 1)"
+		else
+			sqlBuilder += "AND (card.cmc <= ?)"
+			parameterValuesBuilder.push(maxCmc)
+		end
+		
+		@sql = sqlBuilder
+		@parameterValues = parameterValuesBuilder
+	end
+	
+	def sql
+		return @sql
+	end
+	
+	def parameterValues
+		return @parameterValues
+	end	
+end
+
+
+###################################
+# Generate the sql and execute it #
+###################################
 SQLite3::Database.open(cardInformationDb) do |db|
-	textSearchValues = ["enters the battlefield"]
+	
+	# Set the values to search for 
+	textSearchValues = ["deal", "damage", "target", "player"]
 	nameSearchValues = []
 	
-	supertypeIdSearchValues = []
-	subtypeIdSearchValues = []
-	typeIdSearchValues = []
+	minCmc = nil	# should only accept ints
+	maxCmc = nil	# should only accept ints
 	
+	supertypeIdSearchValues = []``	# should only accept ints
+	subtypeIdSearchValues = []		# should only accept ints
+	typeIdSearchValues = [2]		# should only accept ints
+	
+	excludedColorIds = [1,3,5]	# should only accept ints	
+		
 	# build the SQL and conditions
-	textSql = GeneratedWhereAndCondition.new(textSearchValues, "card.Text")
-	nameSql = GeneratedWhereAndCondition.new(nameSearchValues, "card.Name")	
+	textSql = GeneratedWhereAndCondition.new(textSearchValues, "card.Text", "AND")
+	nameSql = GeneratedWhereAndCondition.new(nameSearchValues, "card.Name", "AND")	
 	
-	supertypeIdSql = GeneratedWhereAndCondition.new(supertypeIdSearchValues, "cardsupertype.SupertypeId")
-	subtypeIdSql = GeneratedWhereAndCondition.new(subtypeIdSearchValues, "cardsubtype.SubtypeId")
-	typeIdSql = GeneratedWhereAndCondition.new(typeIdSearchValues, "cardtype.TypeId")
+	supertypeIdSql = GeneratedWhereAndCondition.new(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR")
+	subtypeIdSql = GeneratedWhereAndCondition.new(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR")
+	typeIdSql = GeneratedWhereAndCondition.new(typeIdSearchValues, "cardtype.TypeId", "OR")
+		
+	cmcSql = GenerateCmcSql.new(minCmc, maxCmc)
+		
+	excludedColorSql = GenerateColorSql.new(excludedColorIds)
 	
 	# build the list of parameterValues
 	parameterValues = []
 	
 	parameterValues.push(textSql.parameterValues)
 	parameterValues.push(nameSql.parameterValues)
+	
 	parameterValues.push(supertypeIdSql.parameterValues)
 	parameterValues.push(subtypeIdSql.parameterValues)
 	parameterValues.push(typeIdSql.parameterValues)
+	
+	parameterValues.push(cmcSql.parameterValues)
+	
+	parameterValues.push(excludedColorSql.parameterValues)
 	
 	# build the query
 	query = "	
@@ -149,114 +240,49 @@ SQLite3::Database.open(cardInformationDb) do |db|
 			ON cardtype.CardId = card.CardId
 		WHERE
 			-- search text 
-			" + textSql.sql + "
+			" + textSql.sql + " AND
 
 			-- search card name
-			" + nameSql.sql + "
+			" + nameSql.sql + " AND
 			
 			-- search card supertype
-			" + supertypeIdSql.sql + "
+			" + supertypeIdSql.sql + " AND
 			
 			-- search card subtype
-			" + subtypeIdSql.sql + "
+			" + subtypeIdSql.sql + " AND
 			
 			-- search card type
-			" + typeIdSql.sql + "
+			" + typeIdSql.sql + " AND
+						
+			-- Max and Min cmc
+			" + cmcSql.sql + "
 
-			-- the last statement has an 'and'
-			1=1
 			
-			
---			-- Max and Min cmc; if minCmc is = 0, include null results
---			card.CMC <= ? AND (card.cmc >= ? OR card.cmc is null AND ? <=0) AND
-			
---			-- card power
+			-- card power
 --			((card.power >= ? OR (? = 0 AND card.power is null)) AND card.power <= ?) AND
 			
 --			-- card toughness
 --			((card.toughness >= ? OR (? = 0 AND card.toughness is null)) AND card.toughness <= ?)
-		
 			
 			
 		GROUP BY 
 			card.CardId
---		HAVING
---			-- get multicolored less than or equal to the number of colors, monocolored, or both
---			(1 = ? AND COUNT(color.colorid) > 1 AND COUNT(color.colorid) <= ?) OR (1 = ? AND COUNT(color.colorid) <= 1) OR (? = ?) 
---
 	
-		-- whether to exclude certain colors or not
---		EXCEPT 
---			SELECT 
---				DISTINCT Name 
---			FROM 
---				Card card LEFT JOIN CardColor cardcolor
---			ON card.cardId = cardcolor.CardId LEFT JOIN 
---				Color color 
---			ON color.ColorId = cardcolor.ColorId
---			
---			WHERE
---				(0 = ? AND color.Symbol = 'R') OR		-- includeRed
---				(0 = ? AND color.Symbol = 'U') OR 		-- includeBlue
---				(0 = ? AND color.Symbol = 'G') OR 		-- includeGreen
---				(0 = ? AND color.Symbol = 'W') OR 		-- includeWhite
---				(0 = ? AND color.Symbol = 'B') OR 		-- includeBlack
---				(0 = ? AND color.colorId is null) 		-- includeColorless
---	
-		"
+		-- Exclude colors the user does not want
+		EXCEPT 
+			SELECT 
+				DISTINCT Name 
+			FROM 
+				Card card LEFT JOIN CardColor cardcolor
+			ON card.cardId = cardcolor.CardId LEFT JOIN 
+				Color color 
+			ON color.ColorId = cardcolor.ColorId
+			
+			WHERE
+			" + excludedColorSql.sql + ""
 		
 		
 	result = db.execute(query, parameterValues)
 
 	puts result
-	
-	
-=begin		
-		puts db.execute(query,[
-			# the max and min cmc
-			maxCmc, 
-			minCmc,minCmc,
-			
-			#card text
-			searchText,
-			cardText,		
-			
-			# card name
-			searchName,
-			cardName,
-			
-			# card supertype
-			searchSupertype,
-			supertype,
-			
-			# card type
-			searchType,
-			type,
-			
-			# card power
-			minPower, minPower, 
-			maxPower,
-			
-			# card toughness
-			minToughness, minToughness,
-			maxToughness,
-			
-			# determine multicolored or monocolored
-			onlyMulticolor,
-			maxColors,
-			onlyMonocolor,
-			onlyMulticolor,
-			onlyMonocolor,
-			
-			# search colors
-			includeRed, 
-			includeBlue,
-			includeGreen,
-			includeWhite,
-			includeBlack,
-			includeColorless
-			]
-		)
-		
-=end
 end

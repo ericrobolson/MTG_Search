@@ -28,3 +28,8 @@ Future goals:
 	Add in 'X' mana cost
 	Add in Phyrexian mana
 	Change 'color' to use color identity?
+	Add server side validation for searching
+	Add toggable 'AND'/'OR' to search script
+	Implement inheritance on searchCards
+	Fix names that contain special characters in the databases
+	Implement searching for power and toughness on cards

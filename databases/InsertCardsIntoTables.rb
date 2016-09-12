@@ -221,10 +221,10 @@ SQLite3::Database.open(cardInformationDb) do |db|
 		puts set[1]['name'].to_s + " - Cards: " + set[1]['cards'].length.to_s	
 	end
 	
-	##########################################
-	# For cards that do not have colors,     #
-	# update them to use the colorless color #
-	##########################################
+	
+	# For cards that do not have colors,     
+	# update them to use the colorless color 
+	
 	puts "\n\nUpdating colorless cards..."
 	
 	colorlessCardIds = db.execute("
