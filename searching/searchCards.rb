@@ -7,17 +7,17 @@ DATABASE_LOCATION = '../databases/'
 cardInformationDb = DATABASE_LOCATION + 'CardInformation.db'
 
 ############################################
-# Dynamic SQL statement generation objects #
+# Dynamic SQL statement generation classes #
 ############################################
 
-# Generate SQL for an array of values
-#	def initialize():
+# Generate SQL for an array of values which will allow tokenized searching
+#	def initialize(searchValues, columnToSearch, operator):
 #		searchValues: the array of items to search for
 #		columnToSearch: the column to search in the SQL statement
 #		operator: e.g. AND, OR; whether to search for all of the items in the list or only one
 #	@sql / sql: the generated SQL statement
 #	@parameterValues / parameterValues: the list of variables to use as parameters
-class GeneratedWhereAndCondition
+class GenerateTokenSearchSql
 	@sql
 	@parameterValues
 	
@@ -54,7 +54,7 @@ end
 
 # Generate the SQL for which colors to exclude
 #	only takes ints
-#	def initialize():
+#	def initialize(searchValues):
 #		searchValues: the array of items to search for
 #	@sql / sql: the generated SQL statement
 #	@parameterValues / parameterValues: the list of variables to use as parameters
@@ -89,6 +89,50 @@ class GenerateColorSql
 	def parameterValues
 		return @parameterValues
 	end
+end
+
+# Generate the SQL for card CMC
+#	only take ints
+#	def initialize(minCmc, maxCmc):
+#		minCmc: the minimum cmc that is acceptible
+#		maxCmc: the maximum cmc that is acceptible
+#	@sql / sql: the generated SQL statement
+#	@parameterValues / parameterValues: the list of variables to use as parameters
+class GenerateCmcSql
+	@sql
+	@parameterValues
+	
+	def initialize(minCmc, maxCmc)
+		sqlBuilder = ""
+		parameterValuesBuilder = []
+		
+		# create minimum cmc
+		if (minCmc == nil || minCmc <= 0)
+			sqlBuilder += "(1 = 1) "
+		else
+			sqlBuilder += "(card.cmc >= ?)"
+			parameterValuesBuilder.push(minCmc)
+		end
+		
+		# create the max cmc
+		if (maxCmc == nil || maxCmc <= 0)
+			sqlBuilder += "AND (1 = 1)"
+		else
+			sqlBuilder += "AND (card.cmc <= ?)"
+			parameterValuesBuilder.push(maxCmc)
+		end
+		
+		@sql = sqlBuilder
+		@parameterValues = parameterValuesBuilder
+	end
+	
+	def sql
+		return @sql
+	end
+	
+	def parameterValues
+		return @parameterValues
+	end	
 end
 
 # TODO
@@ -131,86 +175,37 @@ end
 #	end
 #end
 #
+
 ###############################
 # Build and execute the query #
 ###############################
-
-# Generate the SQL for cmc
-#	only take ints
-#	def initialize():
-#		minCmc: the minimum cmc that is acceptible
-#		maxCmc: the maximum cmc that is acceptible
-#	@sql / sql: the generated SQL statement
-#	@parameterValues / parameterValues: the list of variables to use as parameters
-class GenerateCmcSql
-	@sql
-	@parameterValues
-	
-	def initialize(minCmc, maxCmc)
-		sqlBuilder = ""
-		parameterValuesBuilder = []
-		
-		# create minimum cmc
-		if (minCmc == nil || minCmc <= 0)
-			sqlBuilder += "(1 = 1) "
-		else
-			sqlBuilder += "(card.cmc >= ?)"
-			parameterValuesBuilder.push(minCmc)
-		end
-		
-		# create the max cmc
-		if (maxCmc == nil || maxCmc <= 0)
-			sqlBuilder += "AND (1 = 1)"
-		else
-			sqlBuilder += "AND (card.cmc <= ?)"
-			parameterValuesBuilder.push(maxCmc)
-		end
-		
-		@sql = sqlBuilder
-		@parameterValues = parameterValuesBuilder
-	end
-	
-	def sql
-		return @sql
-	end
-	
-	def parameterValues
-		return @parameterValues
-	end	
-end
-
-
-###################################
-# Generate the sql and execute it #
-###################################
 SQLite3::Database.open(cardInformationDb) do |db|
-	
-	# Set the values to search for 
+	# Set the search values 
 	textSearchValues = ["deal", "damage", "target", "player"]
 	nameSearchValues = []
 	
-	minCmc = nil	# should only accept ints
-	maxCmc = nil	# should only accept ints
-	
-	supertypeIdSearchValues = []``	# should only accept ints
-	subtypeIdSearchValues = []		# should only accept ints
-	typeIdSearchValues = [2]		# should only accept ints
-	
-	excludedColorIds = [1,3,5]	# should only accept ints	
+	minCmc = nil					# should only accept ints or nil
+	maxCmc = nil					# should only accept ints or nil
+	                                                          
+	supertypeIdSearchValues = []	# should only accept ints or nil
+	subtypeIdSearchValues = []		# should only accept ints or nil
+	typeIdSearchValues = [2]		# should only accept ints or nil
+	                                                          
+	excludedColorIds = [1,3,5]		# should only accept ints or nil
 		
-	# build the SQL and conditions
-	textSql = GeneratedWhereAndCondition.new(textSearchValues, "card.Text", "AND")
-	nameSql = GeneratedWhereAndCondition.new(nameSearchValues, "card.Name", "AND")	
+	# Generate the SQL to use in the query
+	textSql = GenerateTokenSearchSql.new(textSearchValues, "card.Text", "AND")
+	nameSql = GenerateTokenSearchSql.new(nameSearchValues, "card.Name", "AND")	
 	
-	supertypeIdSql = GeneratedWhereAndCondition.new(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR")
-	subtypeIdSql = GeneratedWhereAndCondition.new(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR")
-	typeIdSql = GeneratedWhereAndCondition.new(typeIdSearchValues, "cardtype.TypeId", "OR")
+	supertypeIdSql = GenerateTokenSearchSql.new(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR")
+	subtypeIdSql = GenerateTokenSearchSql.new(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR")
+	typeIdSql = GenerateTokenSearchSql.new(typeIdSearchValues, "cardtype.TypeId", "OR")
 		
 	cmcSql = GenerateCmcSql.new(minCmc, maxCmc)
 		
 	excludedColorSql = GenerateColorSql.new(excludedColorIds)
 	
-	# build the list of parameterValues
+	# Build the list of query parameters
 	parameterValues = []
 	
 	parameterValues.push(textSql.parameterValues)
@@ -224,7 +219,7 @@ SQLite3::Database.open(cardInformationDb) do |db|
 	
 	parameterValues.push(excludedColorSql.parameterValues)
 	
-	# build the query
+	# Build the query
 	query = "	
 		SELECT
 			DISTINCT Name 
@@ -281,8 +276,9 @@ SQLite3::Database.open(cardInformationDb) do |db|
 			WHERE
 			" + excludedColorSql.sql + ""
 		
-		
+	# Execute the query	
 	result = db.execute(query, parameterValues)
 
+	# Return the query
 	puts result
 end

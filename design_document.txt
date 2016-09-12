@@ -33,3 +33,4 @@ Future goals:
 	Implement inheritance on searchCards
 	Fix names that contain special characters in the databases
 	Implement searching for power and toughness on cards
+	Change SearchCards.rb to be less brittle; e.g. less reliant on the three parts that need to be in order
