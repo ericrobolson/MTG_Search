@@ -91,35 +91,36 @@ class GenerateColorSql
 	end
 end
 
-# Generate the SQL for card CMC
+# Generate the SQL for a min number and a max number
 #	only take ints
-#	def initialize(minCmc, maxCmc):
-#		minCmc: the minimum cmc that is acceptible
-#		maxCmc: the maximum cmc that is acceptible
+#	def initialize(minNumber, maxNumber):
+#		minNumber: the minimum value that is acceptible
+#		maxNumber: the maximum value that is acceptible
+#		columnToSearch: the column to search in the SQL statement
 #	@sql / sql: the generated SQL statement
 #	@parameterValues / parameterValues: the list of variables to use as parameters
-class GenerateCmcSql
+class GenerateNumberRangeSql
 	@sql
 	@parameterValues
 	
-	def initialize(minCmc, maxCmc)
+	def initialize(minNumber, maxNumber, columnToSearch)
 		sqlBuilder = ""
 		parameterValuesBuilder = []
 		
-		# create minimum cmc
-		if (minCmc == nil || minCmc <= 0)
+		# create minimum
+		if (minNumber == nil || minNumber <= 0)
 			sqlBuilder += "(1 = 1) "
 		else
-			sqlBuilder += "(card.cmc >= ?)"
-			parameterValuesBuilder.push(minCmc)
+			sqlBuilder += "(" + columnToSearch + " >= ?)"
+			parameterValuesBuilder.push(minNumber)
 		end
 		
-		# create the max cmc
-		if (maxCmc == nil || maxCmc <= 0)
+		# create the max
+		if (maxNumber == nil || maxNumber <= 0)
 			sqlBuilder += "AND (1 = 1)"
 		else
-			sqlBuilder += "AND (card.cmc <= ?)"
-			parameterValuesBuilder.push(maxCmc)
+			sqlBuilder += "AND (" + columnToSearch + " <= ?)"
+			parameterValuesBuilder.push(maxNumber)
 		end
 		
 		@sql = sqlBuilder
@@ -181,28 +182,40 @@ end
 ###############################
 SQLite3::Database.open(cardInformationDb) do |db|
 	# Set the search values 
-	textSearchValues = ["deal", "damage", "target", "player"]
+	textSearchValues = []
 	nameSearchValues = []
 	
 	minCmc = nil					# should only accept ints or nil
 	maxCmc = nil					# should only accept ints or nil
-	                                                          
+	
+	minPower = nil					# should only accept ints or nil
+	maxPower = nil					# should only accept ints or nil
+		
+	minToughness = nil				# should only accept ints or nil
+	maxToughness = nil				# should only accept ints or nil
+	
+	
 	supertypeIdSearchValues = []	# should only accept ints or nil
 	subtypeIdSearchValues = []		# should only accept ints or nil
-	typeIdSearchValues = [2]		# should only accept ints or nil
+	typeIdSearchValues = []			# should only accept ints or nil
+	rarityIdSearchValues = []		# should only accept ints or nil
+	artistIdSearchValues = []		# should only accept ints or nil
 	                                                          
-	excludedColorIds = [1,3,5]		# should only accept ints or nil
+	excludedColorIds = []			# should only accept ints or nil
 		
 	# Generate the SQL to use in the query
 	textSql = GenerateTokenSearchSql.new(textSearchValues, "card.Text", "AND")
 	nameSql = GenerateTokenSearchSql.new(nameSearchValues, "card.Name", "AND")	
-	
 	supertypeIdSql = GenerateTokenSearchSql.new(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR")
 	subtypeIdSql = GenerateTokenSearchSql.new(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR")
 	typeIdSql = GenerateTokenSearchSql.new(typeIdSearchValues, "cardtype.TypeId", "OR")
-		
-	cmcSql = GenerateCmcSql.new(minCmc, maxCmc)
-		
+	cmcSql = GenerateNumberRangeSql.new(minCmc, maxCmc, "card.CMC")
+	raritySql = GenerateTokenSearchSql.new(rarityIdSearchValues, "card.RarityId", "OR")	
+	artistSql = GenerateTokenSearchSql.new(artistIdSearchValues, "card.ArtistId", "OR")
+	
+	powerSql = GenerateNumberRangeSql.new(minPower, maxPower, "card.Power")
+	toughnessSql = GenerateNumberRangeSql.new(minToughness, maxToughness, "card.Toughness")
+	
 	excludedColorSql = GenerateColorSql.new(excludedColorIds)
 	
 	# Build the list of query parameters
@@ -210,12 +223,14 @@ SQLite3::Database.open(cardInformationDb) do |db|
 	
 	parameterValues.push(textSql.parameterValues)
 	parameterValues.push(nameSql.parameterValues)
-	
 	parameterValues.push(supertypeIdSql.parameterValues)
 	parameterValues.push(subtypeIdSql.parameterValues)
 	parameterValues.push(typeIdSql.parameterValues)
-	
 	parameterValues.push(cmcSql.parameterValues)
+	parameterValues.push(raritySql.parameterValues)
+	parameterValues.push(artistSql.parameterValues)
+	parameterValues.push(powerSql.parameterValues)
+	parameterValues.push(toughnessSql.parameterValues)
 	
 	parameterValues.push(excludedColorSql.parameterValues)
 	
@@ -232,7 +247,7 @@ SQLite3::Database.open(cardInformationDb) do |db|
 				CardSubtype cardsubtype				
 			ON cardsubtype.CardId = card.CardId LEFT JOIN
 				CardType cardtype
-			ON cardtype.CardId = card.CardId
+			ON cardtype.CardId = card.CardId 
 		WHERE
 			-- search text 
 			" + textSql.sql + " AND
@@ -250,14 +265,19 @@ SQLite3::Database.open(cardInformationDb) do |db|
 			" + typeIdSql.sql + " AND
 						
 			-- Max and Min cmc
-			" + cmcSql.sql + "
-
+			" + cmcSql.sql + " AND
+			
+			-- card rarity
+			" + raritySql.sql + " AND
+			
+			-- card artist
+			" + artistSql.sql + " AND
 			
 			-- card power
---			((card.power >= ? OR (? = 0 AND card.power is null)) AND card.power <= ?) AND
+			" + powerSql.sql + " AND
 			
---			-- card toughness
---			((card.toughness >= ? OR (? = 0 AND card.toughness is null)) AND card.toughness <= ?)
+			-- card toughness
+			" + toughnessSql.sql + "
 			
 			
 		GROUP BY 
