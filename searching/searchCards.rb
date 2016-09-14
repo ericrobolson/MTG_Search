@@ -136,54 +136,78 @@ class GenerateNumberRangeSql
 	end	
 end
 
-# TODO
-## Generate the code which determines how many unique colors are acceptible
-##	only accepts ints
-#class GenerateNumberOfColorsSql
-#	@sql
-#	@parameterValues
-#		
-#	def initialize(min, max)
-#		sqlBuilder = ""
-#		parameterValuesBuilder = []
-#	
-#		# build the minimum colors required
-#		if (min == nil || min == 0)
-#			sqlBuilder += " (1 = 1) "
-#		else
-#			sqlBuilder += "(COUNT(color.ColorId) >= ?)"
-#			parameterValuesBuilder.push(min)
-#		end
-#
-#		# build the maximum colors required
-#		if (max == nil || max == 0)
-#			sqlBuilder += " AND (1 = 1) "
-#		else
-#			sqlBuilder += " AND (COUNT(color.ColorId) >= ?) "
-#			parameterValuesBuilder.push(max)
-#		end
-#		
-#		@sql = sqlBuilder
-#		@parameterValues = parameterValuesBuilder
-#	end
-#	
-#	def sql
-#		return @sql
-#	end
-#	
-#	def parameterValues
-#		return @parameterValues
-#	end
-#end
-#
+
+# Whether to exclude monocolor, exclude multicolor, or include both
+module ExcludeMultiOrMono
+	MONOCOLOR = 1
+	MULTICOLOR = 2
+	NEITHER = 3
+end
+
+# Generate the SQL for excluding monocolor, excluding multicolor, or including both
+#	must take either ExcludeMultiOrMono:: values
+#	def initialize(filter):
+#		filter: sets whether to exclude multicolor, exclude monocolor, or include both
+#	@sql / sql: the generated SQL statement
+class GenerateMultiOrMonoSql
+	def excludeMultiColorSql 
+		return "
+		EXCEPT
+		SELECT
+			DISTINCT Card.Name
+		FROM 
+			Card card LEFT JOIN 
+				CardColor color 
+			ON color.CardId = card.CardId
+		
+		GROUP BY Card.CardId
+		HAVING Count(Color.ColorId) > 1"
+	end
+
+	def excludeMonoColorSql 
+		return "
+		EXCEPT
+		SELECT
+			DISTINCT Card.Name
+		FROM 
+			Card card LEFT JOIN 
+				CardColor color 
+			ON color.CardId = card.CardId
+		
+		GROUP BY Card.CardId
+		HAVING Count(Color.ColorId) = 1"
+	end
+	
+	def includeBoth 
+		return 	"-- exclude nothing"	
+	end
+		
+		
+	@filter
+		
+	def initialize(filter)	
+		@filter = filter
+	end
+	
+	def sql 	
+		if (@filter == ExcludeMultiOrMono::MULTICOLOR)
+			return excludeMultiColorSql
+		elsif (@filter == ExcludeMultiOrMono::MONOCOLOR)
+			return excludeMonoColorSql
+		else
+			return includeBoth		
+		end
+	end	
+end
+
 
 ###############################
 # Build and execute the query #
 ###############################
 SQLite3::Database.open(cardInformationDb) do |db|
 	# Set the search values 
-	textSearchValues = []
-	nameSearchValues = []
+	textSearchValues = []			# can accept any sort of text values
+	nameSearchValues = []			# can accept any sort of text values
 	
 	minCmc = nil					# should only accept ints or nil
 	maxCmc = nil					# should only accept ints or nil
@@ -202,7 +226,9 @@ SQLite3::Database.open(cardInformationDb) do |db|
 	artistIdSearchValues = []		# should only accept ints or nil
 	                                                          
 	excludedColorIds = []			# should only accept ints or nil
-		
+	
+	excludeMultiOrMono = ExcludeMultiOrMono::NEITHER	# can only be part of th ExcludeMultiOrMono enum
+	
 	# Generate the SQL to use in the query
 	textSql = GenerateTokenSearchSql.new(textSearchValues, "card.Text", "AND")
 	nameSql = GenerateTokenSearchSql.new(nameSearchValues, "card.Name", "AND")	
@@ -217,6 +243,10 @@ SQLite3::Database.open(cardInformationDb) do |db|
 	toughnessSql = GenerateNumberRangeSql.new(minToughness, maxToughness, "card.Toughness")
 	
 	excludedColorSql = GenerateColorSql.new(excludedColorIds)
+	
+	
+	ExcludeMultiOrMonoSql = GenerateMultiOrMonoSql.new(excludeMultiOrMono)
+	
 	
 	# Build the list of query parameters
 	parameterValues = []
@@ -277,8 +307,7 @@ SQLite3::Database.open(cardInformationDb) do |db|
 			" + powerSql.sql + " AND
 			
 			-- card toughness
-			" + toughnessSql.sql + "
-			
+			" + toughnessSql.sql + "			
 			
 		GROUP BY 
 			card.CardId
@@ -294,7 +323,13 @@ SQLite3::Database.open(cardInformationDb) do |db|
 			ON color.ColorId = cardcolor.ColorId
 			
 			WHERE
-			" + excludedColorSql.sql + ""
+			" + excludedColorSql.sql + "
+			
+		-- Exclude mono color cards, or multi color cards
+		" + ExcludeMultiOrMonoSql.sql + "
+			"
+			
+		
 		
 	# Execute the query	
 	result = db.execute(query, parameterValues)

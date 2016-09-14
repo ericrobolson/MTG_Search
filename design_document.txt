@@ -20,6 +20,8 @@ Services:
 	
 	
 Future goals:
+	TODO: reformat comments on BatchSorting
+
 	Formats cards are legal in
 	Deck Editor
 	Meta Analyzer
