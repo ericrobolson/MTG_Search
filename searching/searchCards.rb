@@ -83,7 +83,20 @@ class GenerateColorSql
 	end
 	
 	def sql
-		return @sql
+		exceptClause = "
+		EXCEPT 
+			SELECT 
+				DISTINCT Name 
+			FROM 
+				Card card LEFT JOIN CardColor cardcolor
+			ON card.cardId = cardcolor.CardId LEFT JOIN 
+				Color color 
+			ON color.ColorId = cardcolor.ColorId
+			
+			WHERE
+		"
+	
+		return exceptClause + @sql
 	end
 	
 	def parameterValues
@@ -313,17 +326,7 @@ SQLite3::Database.open(cardInformationDb) do |db|
 			card.CardId
 	
 		-- Exclude colors the user does not want
-		EXCEPT 
-			SELECT 
-				DISTINCT Name 
-			FROM 
-				Card card LEFT JOIN CardColor cardcolor
-			ON card.cardId = cardcolor.CardId LEFT JOIN 
-				Color color 
-			ON color.ColorId = cardcolor.ColorId
-			
-			WHERE
-			" + excludedColorSql.sql + "
+		" + excludedColorSql.sql + "
 			
 		-- Exclude mono color cards, or multi color cards
 		" + ExcludeMultiOrMonoSql.sql + "

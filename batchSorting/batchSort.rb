@@ -13,7 +13,7 @@ module ExcludeMultiOrMono
 end
 
 # Generate the SQL for excluding monocolor, excluding multicolor, or including both
-#	must take either ExcludeMultiOrMono:: values
+#	must take either ExcludeMultiOrMono::values
 #	def initialize(filter):
 #		filter: sets whether to exclude multicolor, exclude monocolor, or include both
 #	@sql / sql: the generated SQL statement
@@ -74,8 +74,7 @@ end
 def SortByCmc(cardsToSort)
 	database_location = '../databases/'
 	cardInformationDb = database_location + 'CardInformation.db'
-	
-	
+		
 	cardsByCmc = []
 	
 	SQLite3::Database.open(cardInformationDb) do |db|				
