@@ -6,50 +6,36 @@ require 'sqlite3'
 DATABASE_LOCATION = '../databases/'
 cardInformationDb = DATABASE_LOCATION + 'CardInformation.db'
 
-############################################
-# Dynamic SQL statement generation classes #
-############################################
+# TODO: Change the rest of the SQL generation classes to use functions, so that there are less dependencies used
+
+####################################
+# Dynamic SQL statement generation #
+####################################
 
 # Generate SQL for an array of values which will allow tokenized searching
-#	def initialize(searchValues, columnToSearch, operator):
+#	(searchValues, columnToSearch, operator, parameterValues):
 #		searchValues: the array of items to search for
 #		columnToSearch: the column to search in the SQL statement
 #		operator: e.g. AND, OR; whether to search for all of the items in the list or only one
-#	@sql / sql: the generated SQL statement
-#	@parameterValues / parameterValues: the list of variables to use as parameters
-class GenerateTokenSearchSql
-	@sql
-	@parameterValues
+#		parameterValues: the array containing values to be used in the  SQL statement
+def TokenSearchSql(searchValues, columnToSearch, operator, parameterValues)
+	sqlBuilder = ""
 	
-	def initialize(searchValues, columnToSearch, operator)
-		sqlBuilder = ""
-		parameterValuesBuilder = []
+	if (searchValues == nil || searchValues.length == 0 || columnToSearch == nil || columnToSearch.length == 0)
+		sqlBuilder = "(1 = 1)"
+	else
+		sqlBuilder += "("
 	
-		if (searchValues == nil || searchValues.length == 0 || columnToSearch == nil || columnToSearch.length == 0)
-			sqlBuilder = "(1 = 1)"
-		else
-			sqlBuilder += "("
-		
-			searchValues.each do |searchValue|
-				sqlBuilder += "(" + columnToSearch + " like ?) " + operator
-				parameterValuesBuilder.push("%" + searchValue.to_s + "%")
-			end
-			
-			sqlBuilder = sqlBuilder.chomp(operator)
-			sqlBuilder += ")"
+		searchValues.each do |searchValue|
+			sqlBuilder += "(" + columnToSearch + " like ?) " + operator
+			parameterValues.push("%" + searchValue.to_s + "%")
 		end
 		
-		@sql = sqlBuilder
-		@parameterValues = parameterValuesBuilder
-	end
-		
-	def sql 
-		return @sql
+		sqlBuilder = sqlBuilder.chomp(operator)
+		sqlBuilder += ")"
 	end
 	
-	def parameterValues
-		return @parameterValues
-	end
+	return sqlBuilder
 end
 
 # Generate the SQL for which colors to exclude
@@ -105,48 +91,30 @@ class GenerateColorSql
 end
 
 # Generate the SQL for a min number and a max number
-#	only take ints
-#	def initialize(minNumber, maxNumber):
-#		minNumber: the minimum value that is acceptible
-#		maxNumber: the maximum value that is acceptible
-#		columnToSearch: the column to search in the SQL statement
-#	@sql / sql: the generated SQL statement
-#	@parameterValues / parameterValues: the list of variables to use as parameters
-class GenerateNumberRangeSql
-	@sql
-	@parameterValues
+#	minNumber: the minimum int value that is acceptible
+#	maxNumber: the maximum int value that is acceptible
+#	columnToSearch: the column to search in the SQL statement
+#	parameterValues / parameterValues: the list of variables to use as parameters
+def NumberRangeSql(minNumber, maxNumber, columnToSearch, parameterValues)
+	sqlBuilder = ""
 	
-	def initialize(minNumber, maxNumber, columnToSearch)
-		sqlBuilder = ""
-		parameterValuesBuilder = []
-		
-		# create minimum
-		if (minNumber == nil || minNumber <= 0)
-			sqlBuilder += "(1 = 1) "
-		else
-			sqlBuilder += "(" + columnToSearch + " >= ?)"
-			parameterValuesBuilder.push(minNumber)
-		end
-		
-		# create the max
-		if (maxNumber == nil || maxNumber <= 0)
-			sqlBuilder += "AND (1 = 1)"
-		else
-			sqlBuilder += "AND (" + columnToSearch + " <= ?)"
-			parameterValuesBuilder.push(maxNumber)
-		end
-		
-		@sql = sqlBuilder
-		@parameterValues = parameterValuesBuilder
+	# create minimum
+	if (minNumber == nil || minNumber <= 0)
+		sqlBuilder += "(1 = 1) "
+	else
+		sqlBuilder += "(" + columnToSearch + " >= ?)"
+		parameterValues.push(minNumber)
 	end
 	
-	def sql
-		return @sql
+	# create the max
+	if (maxNumber == nil || maxNumber <= 0)
+		sqlBuilder += "AND (1 = 1)"
+	else
+		sqlBuilder += "AND (" + columnToSearch + " <= ?)"
+		parameterValues.push(maxNumber)
 	end
 	
-	def parameterValues
-		return @parameterValues
-	end	
+	return sqlBuilder
 end
 
 
@@ -243,17 +211,14 @@ SQLite3::Database.open(cardInformationDb) do |db|
 	excludeMultiOrMono = ExcludeMultiOrMono::NEITHER	# can only be part of th ExcludeMultiOrMono enum
 	
 	# Generate the SQL to use in the query
-	textSql = GenerateTokenSearchSql.new(textSearchValues, "card.Text", "AND")
-	nameSql = GenerateTokenSearchSql.new(nameSearchValues, "card.Name", "AND")	
-	supertypeIdSql = GenerateTokenSearchSql.new(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR")
-	subtypeIdSql = GenerateTokenSearchSql.new(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR")
-	typeIdSql = GenerateTokenSearchSql.new(typeIdSearchValues, "cardtype.TypeId", "OR")
-	cmcSql = GenerateNumberRangeSql.new(minCmc, maxCmc, "card.CMC")
-	raritySql = GenerateTokenSearchSql.new(rarityIdSearchValues, "card.RarityId", "OR")	
-	artistSql = GenerateTokenSearchSql.new(artistIdSearchValues, "card.ArtistId", "OR")
+
+#	TokenSearchSql(typeIdSearchValues, "cardtype.TypeId", "OR", parameterValues)
+
 	
-	powerSql = GenerateNumberRangeSql.new(minPower, maxPower, "card.Power")
-	toughnessSql = GenerateNumberRangeSql.new(minToughness, maxToughness, "card.Toughness")
+	
+	
+	
+	
 	
 	excludedColorSql = GenerateColorSql.new(excludedColorIds)
 	
@@ -263,17 +228,6 @@ SQLite3::Database.open(cardInformationDb) do |db|
 	
 	# Build the list of query parameters
 	parameterValues = []
-	
-	parameterValues.push(textSql.parameterValues)
-	parameterValues.push(nameSql.parameterValues)
-	parameterValues.push(supertypeIdSql.parameterValues)
-	parameterValues.push(subtypeIdSql.parameterValues)
-	parameterValues.push(typeIdSql.parameterValues)
-	parameterValues.push(cmcSql.parameterValues)
-	parameterValues.push(raritySql.parameterValues)
-	parameterValues.push(artistSql.parameterValues)
-	parameterValues.push(powerSql.parameterValues)
-	parameterValues.push(toughnessSql.parameterValues)
 	
 	parameterValues.push(excludedColorSql.parameterValues)
 	
@@ -293,34 +247,34 @@ SQLite3::Database.open(cardInformationDb) do |db|
 			ON cardtype.CardId = card.CardId 
 		WHERE
 			-- search text 
-			" + textSql.sql + " AND
+			" + TokenSearchSql(textSearchValues, "card.Text", "AND", parameterValues) + " AND
 
 			-- search card name
-			" + nameSql.sql + " AND
+			" + TokenSearchSql(nameSearchValues, "card.Name", "AND", parameterValues) + " AND
 			
 			-- search card supertype
-			" + supertypeIdSql.sql + " AND
+			" + TokenSearchSql(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR", parameterValues) + " AND
 			
 			-- search card subtype
-			" + subtypeIdSql.sql + " AND
+			" + TokenSearchSql(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR", parameterValues) + " AND
 			
 			-- search card type
-			" + typeIdSql.sql + " AND
+			" + TokenSearchSql(typeIdSearchValues, "cardtype.TypeId", "OR", parameterValues) + " AND
 						
 			-- Max and Min cmc
-			" + cmcSql.sql + " AND
+			" + NumberRangeSql(minCmc, maxCmc, "card.CMC", parameterValues) + " AND
 			
 			-- card rarity
-			" + raritySql.sql + " AND
+			" + TokenSearchSql(rarityIdSearchValues, "card.RarityId", "OR", parameterValues) + " AND
 			
 			-- card artist
-			" + artistSql.sql + " AND
+			" + TokenSearchSql(artistIdSearchValues, "card.ArtistId", "OR", parameterValues) + " AND
 			
 			-- card power
-			" + powerSql.sql + " AND
+			" + NumberRangeSql(minPower, maxPower, "card.Power", parameterValues) + " AND
 			
 			-- card toughness
-			" + toughnessSql.sql + "			
+			" + NumberRangeSql(minToughness, maxToughness, "card.Toughness", parameterValues) + "			
 			
 		GROUP BY 
 			card.CardId
