@@ -1,1 +1,5 @@
-1: Card subtype is not working properly; e.g. searching by subtype id returns something wrong
+Unfixed:
+
+
+Fixed:
+	1: Card subtype is not working properly; e.g. searching by subtype id returns something wrong

@@ -16,7 +16,8 @@ cardInformationDb = DATABASE_LOCATION + 'CardInformation.db'
 #		columnToSearch: the column to search in the SQL statement
 #		operator: e.g. AND, OR; whether to search for all of the items in the list or only one
 #		parameterValues: the array containing values to be used in the  SQL statement
-def TokenSearchSql(searchValues, columnToSearch, operator, parameterValues)
+#		exactValueOnly: whether to use the exact value, or to just match it
+def TokenSearchSql(searchValues, columnToSearch, operator, parameterValues, exactValueOnly)
 	sqlBuilder = ""
 	
 	if (searchValues == nil || searchValues.length == 0 || columnToSearch == nil || columnToSearch.length == 0)
@@ -24,9 +25,14 @@ def TokenSearchSql(searchValues, columnToSearch, operator, parameterValues)
 	else
 		sqlBuilder += "("
 	
-		searchValues.each do |searchValue|
+		searchValues.each do |searchValue|		
 			sqlBuilder += "(" + columnToSearch + " like ?) " + operator
-			parameterValues.push("%" + searchValue.to_s + "%")
+			
+			if (exactValueOnly)
+				parameterValues.push(searchValue.to_s)
+			else
+				parameterValues.push("%" + searchValue.to_s + "%")
+			end
 		end
 		
 		sqlBuilder = sqlBuilder.chomp(operator)
@@ -189,34 +195,34 @@ SQLite3::Database.open(cardInformationDb) do |db|
 				CardType cardtype
 			ON cardtype.CardId = card.CardId 
 		WHERE
-			-- search text 
-			" + TokenSearchSql(textSearchValues, "card.Text", "AND", parameterValues) + " AND
+			-- Search text 
+			" + TokenSearchSql(textSearchValues, "card.Text", "AND", parameterValues, false) + " AND
 
-			-- search card name
-			" + TokenSearchSql(nameSearchValues, "card.Name", "AND", parameterValues) + " AND
+			-- Search card name
+			" + TokenSearchSql(nameSearchValues, "card.Name", "AND", parameterValues, false) + " AND
 			
-			-- search card supertype
-			" + TokenSearchSql(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR", parameterValues) + " AND
+			-- Search card supertype
+			" + TokenSearchSql(supertypeIdSearchValues, "cardsupertype.SupertypeId", "OR", parameterValues, true) + " AND
 			
-			-- search card subtype
-			" + TokenSearchSql(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR", parameterValues) + " AND
+			-- Search card subtype
+			" + TokenSearchSql(subtypeIdSearchValues, "cardsubtype.SubtypeId", "OR", parameterValues, true) + " AND
 			
-			-- search card type
-			" + TokenSearchSql(typeIdSearchValues, "cardtype.TypeId", "OR", parameterValues) + " AND
+			-- Search card type
+			" + TokenSearchSql(typeIdSearchValues, "cardtype.TypeId", "OR", parameterValues, true) + " AND
 						
 			-- Max and Min cmc
 			" + NumberRangeSql(minCmc, maxCmc, "card.CMC", parameterValues) + " AND
 			
-			-- card rarity
-			" + TokenSearchSql(rarityIdSearchValues, "card.RarityId", "OR", parameterValues) + " AND
+			-- Card rarity
+			" + TokenSearchSql(rarityIdSearchValues, "card.RarityId", "OR", parameterValues, true) + " AND
 			
-			-- card artist
-			" + TokenSearchSql(artistIdSearchValues, "card.ArtistId", "OR", parameterValues) + " AND
+			-- Card artist
+			" + TokenSearchSql(artistIdSearchValues, "card.ArtistId", "OR", parameterValues, true) + " AND
 			
-			-- card power
+			-- Card power
 			" + NumberRangeSql(minPower, maxPower, "card.Power", parameterValues) + " AND
 			
-			-- card toughness
+			-- Card toughness
 			" + NumberRangeSql(minToughness, maxToughness, "card.Toughness", parameterValues) + "			
 			
 		GROUP BY 

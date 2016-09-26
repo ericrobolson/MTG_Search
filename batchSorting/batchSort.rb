@@ -78,13 +78,13 @@ def SortByCmc(cardsToSort)
 	cardsByCmc = []
 	
 	SQLite3::Database.open(cardInformationDb) do |db|				
-		# insert all the batch files into a temporary table to allow faster sorting
+		# Insert all the batch files into a temporary table to allow faster sorting
 		db.execute("CREATE TEMPORARY TABLE BatchCards (Name TEXT)")
 		cardsToSort.each do |card|
 			db.execute("INSERT INTO BatchCards (Name) VALUES (?)", card)
 		end
 		
-		# sort all cards that are 0 cmc or nil cmc
+		# Sort all cards that are 0 cmc or nil cmc
 		cards = db.execute("
 			SELECT 
 				DISTINCT Card.Name
@@ -101,7 +101,7 @@ def SortByCmc(cardsToSort)
 			cardsByCmc.push(jsonObj)
 		end			
 				
-		# sort all cards by cmc
+		# Sort all cards by cmc
 		cmcRange = [1,2,3,4,5,6,7,8,9]
 		cmcRange.each do |cmc|
 			cards = db.execute("
@@ -121,7 +121,7 @@ def SortByCmc(cardsToSort)
 			end			
 		end
 		
-		# sort cards with cmc greater than 10
+		# Sort cards with cmc greater than 10
 		cards = db.execute("
 			SELECT 
 				DISTINCT Card.Name
@@ -139,7 +139,7 @@ def SortByCmc(cardsToSort)
 		end			
 		
 		
-		# delete the temp table
+		# Delete the temp table
 		db.execute("DROP TABLE BatchCards")	
 	end
 		
@@ -156,21 +156,21 @@ def SortByColor(cardsToSort)
 	excludeMonoColor = GenerateMultiOrMonoSql.new(ExcludeMultiOrMono::MONOCOLOR)
 	excludeMultiColor = GenerateMultiOrMonoSql.new(ExcludeMultiOrMono::MULTICOLOR)
 
-	# the array that contains JSON objects of all the cards by colors
+	# The array that contains JSON objects of all the cards by colors
 	cardsByColor = []
 	
 	
 	SQLite3::Database.open(cardInformationDb) do |db|
-		# get all colors and names
+		# Get all colors and names
 		colorList = db.execute("SELECT Color, ColorId from Color")
 				
-		# insert all the batch files into a temporary table to allow faster sorting
+		# Insert all the batch files into a temporary table to allow faster sorting
 		db.execute("CREATE TEMPORARY TABLE BatchCards (Name TEXT)")
 		cardsToSort.each do |card|
 			db.execute("INSERT INTO BatchCards (Name) VALUES (?)", card)
 		end
 		
-		# sort all multicolor cards that are in the batch list
+		# Sort all multicolor cards that are in the batch list
 		multicolorCards = db.execute("	
 			SELECT 
 				DISTINCT Card.Name
@@ -186,7 +186,7 @@ def SortByColor(cardsToSort)
 			cardsByColor.push(jsonObj)
 		end
 			
-		# sort all monocolor cards in the batch list
+		# Sort all monocolor cards in the batch list
 		colorList.each do |color, colorId|
 			cards = db.execute("
 				SELECT 
@@ -212,7 +212,7 @@ def SortByColor(cardsToSort)
 			
 		end
 		
-		# delete the temp table
+		# Delete the temp table
 		db.execute("DROP TABLE BatchCards")
 	end
 	
