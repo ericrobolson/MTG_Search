@@ -11,7 +11,7 @@ cardInformationDb = DATABASE_LOCATION + 'CardInformation.db'
 ####################################
 
 # Generate SQL for an array of values which will allow tokenized searching
-#	(searchValues, columnToSearch, operator, parameterValues):
+#	(searchValues, columnToSearch, operator, parameterValues, exactValueOnly):
 #		searchValues: the array of items to search for
 #		columnToSearch: the column to search in the SQL statement
 #		operator: e.g. AND, OR; whether to search for all of the items in the list or only one
